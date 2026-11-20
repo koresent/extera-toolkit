@@ -143,7 +143,66 @@ tgplugin inspect expr "MessagesController.getInstance(0)"
 
 ---
 
-### 3.6 Log Monitoring & Crash Traces (`logs` & `crash`)
+### 3.6 Java / Kotlin Interop & Class Discovery
+
+#### Class & Method Search
+Quickly find Telegram/Android classes without grepping entire source repositories:
+```bash
+tgplugin search class DialogCell
+```
+
+#### Hook Overload Inspector
+Inspect all overloads of a Java method and generate exact `hook_method` recipes:
+```bash
+tgplugin hook-info org.telegram.ui.Cells.DialogCell onDraw
+```
+
+#### Stub Generator
+Generate ready-to-paste Python code for Chaquopy subclasses or dynamic proxies:
+```bash
+tgplugin stub android.view.View.OnClickListener --mode proxy
+tgplugin stub android.widget.FrameLayout --mode subclass
+```
+
+#### Signed Type & Color Conversion (`jtypes`)
+Convert hex colors or unsigned numbers to Java signed 32-bit `jint` to avoid `OverflowError`:
+```bash
+tgplugin jtypes color "#FF1E88E5"
+tgplugin jtypes to-signed "0xFFFFFFFF"
+```
+
+---
+
+### 3.7 Telegram Runtime State & SQLite Database
+
+#### Inspect Active Screen / Fragment Stack
+Query currently displayed fragment, dialog ID, topic, and active bottom sheets:
+```bash
+tgplugin runtime fragment
+```
+
+#### Query Internal SQLite Database
+Directly inspect local SQLite tables (`messages`, `dialogs`, `topics`) via `MessagesStorage`:
+```bash
+tgplugin db "SELECT mid, uid, message FROM messages ORDER BY date DESC LIMIT 10"
+```
+
+---
+
+### 3.8 Static Analysis & Linter (`lint`)
+Validate plugin code against common runtime traps before deployment:
+```bash
+tgplugin lint kanban_board/
+```
+Catches:
+* Unsigned color literals passed to Java methods without `to_jint`
+* Leaked UI hooks without `on_plugin_unload` cleanup (prevents button duplication)
+* Blocking `time.sleep` calls on UI thread
+* Missing or malformed plugin metadata
+
+---
+
+### 3.9 Log Monitoring & Crash Traces (`logs` & `crash`)
 
 Retrieve clean plugin logs:
 ```bash
@@ -156,7 +215,7 @@ tgplugin crash --tail 50
 
 ---
 
-### 3.7 Remote Filesystem (`fs`)
+### 3.10 Remote Filesystem (`fs`)
 Read or search files in device sandbox or external storage without complex shell pipelines:
 ```bash
 tgplugin fs ls /sdcard/Android/data/org.telegram.messenger/files/
@@ -166,7 +225,7 @@ tgplugin fs grep "Error" /sdcard/Download/plugin_debug.log
 
 ---
 
-### 3.8 Device Connection & Clean Restart
+### 3.11 Device Connection & Clean Restart
 Connect over Wi-Fi ADB:
 ```bash
 tgplugin connect 192.168.1.50:5555

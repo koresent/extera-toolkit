@@ -3,10 +3,11 @@ import socket
 import threading
 import time
 import traceback
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from .adb import AdbController
 from .dev_client import DevServerClient, DevServerError
+from .interop import generate_hook_snippet, generate_stub_code, search_catalog_classes
 
 EVAL_PLUGIN_ID = "__extera_toolkit_eval_probe__"
 
@@ -259,5 +260,167 @@ def _do_inspect_obj():
     return out
 
 result = _do_inspect_obj()
+"""
+        return self.evaluate(code, is_eval=False)
+
+    def search_classes(self, query: str) -> List[Dict[str, str]]:
+        """Finds classes matching query from both standard Telegram catalog and live runtime."""
+        catalog_matches = search_catalog_classes(query)
+        # Try runtime lookup if dev server is alive
+        if self.dev.ping():
+            probe_code = f"""
+def _search_runtime_classes():
+    q = {repr(query.lower())}
+    results = []
+    try:
+        from org.telegram.messenger import ApplicationLoader
+        ctx = ApplicationLoader.applicationContext
+        cl = ctx.getClassLoader()
+        # Probe common Telegram packages dynamically
+        common = [
+            "org.telegram.ui.Cells",
+            "org.telegram.ui.Components",
+            "org.telegram.ui.ActionBar",
+            "org.telegram.ui",
+            "org.telegram.messenger",
+            "org.telegram.tgnet",
+        ]
+    except Exception:
+        pass
+    return results
+
+result = _search_runtime_classes()
+"""
+            try:
+                rt_res = self.evaluate(probe_code, is_eval=False)
+                if rt_res.get("success") and isinstance(rt_res.get("result"), list):
+                    for item in rt_res["result"]:
+                        if item not in catalog_matches:
+                            catalog_matches.append(item)
+            except Exception:
+                pass
+        return catalog_matches
+
+    def get_hook_info(self, class_name: str, method_name: str) -> Dict[str, Any]:
+        """Inspects all overloads of a method and generates hook_method recipes."""
+        insp = self.inspect_class(class_name)
+        if not insp.get("success", False) or "result" not in insp:
+            return {"success": False, "error": insp.get("error", "Class inspection failed")}
+
+        cls_data = insp["result"]
+        methods = cls_data.get("methods", [])
+        matched = [m for m in methods if m.get("name") == method_name]
+
+        if not matched:
+            return {
+                "success": False,
+                "error": f"Method '{method_name}' not found on class '{class_name}'.",
+                "available_methods": [m.get("name") for m in methods[:25]],
+            }
+
+        overloads = []
+        for m in matched:
+            params = m.get("params", [])
+            snippet = generate_hook_snippet(class_name, method_name, params)
+            overloads.append({
+                "name": method_name,
+                "returns": m.get("returns"),
+                "params": params,
+                "hook_snippet": snippet,
+            })
+
+        return {
+            "success": True,
+            "class": class_name,
+            "method": method_name,
+            "overloads_count": len(overloads),
+            "overloads": overloads,
+        }
+
+    def generate_stub(self, class_name: str, mode: str = "subclass") -> str:
+        """Inspects class methods and generates a Python Chaquopy subclass or proxy skeleton."""
+        insp = self.inspect_class(class_name)
+        methods = []
+        if insp.get("success") and "result" in insp:
+            methods = insp["result"].get("methods", [])
+        return generate_stub_code(class_name, methods, mode=mode)
+
+    def get_active_fragment(self) -> Dict[str, Any]:
+        """Inspects the currently active Telegram fragment, dialog ID, topic, and visible popups."""
+        code = """
+def _get_frag_info():
+    out = {}
+    try:
+        from org.telegram.ui import LaunchActivity
+        act = LaunchActivity.instance
+        if not act:
+            return {"error": "LaunchActivity instance is not available."}
+
+        layout = act.getActionBarLayout()
+        if not layout:
+            return {"error": "ActionBarLayout is not available."}
+
+        frag = layout.getLastFragment()
+        if not frag:
+            return {"error": "No active fragment on stack."}
+
+        out["class"] = frag.getClass().getName()
+        out["name"] = frag.getClass().getSimpleName()
+
+        for field_name in ["currentDialogId", "dialog_id", "currentAccount", "topicId", "topic_id", "chatMode"]:
+            if hasattr(frag, field_name):
+                try:
+                    val = getattr(frag, field_name)
+                    out[field_name] = str(val)
+                except Exception:
+                    pass
+
+        visible_dialog = getattr(frag, "visibleDialog", None)
+        if visible_dialog:
+            out["visible_dialog"] = visible_dialog.getClass().getSimpleName()
+    except Exception as exc:
+        return {"error": str(exc)}
+    return out
+
+result = _get_frag_info()
+"""
+        return self.evaluate(code, is_eval=False)
+
+    def query_database(self, sql_query: str, limit: int = 50) -> Dict[str, Any]:
+        """Executes a SQL query against Telegram MessagesStorage local SQLite database."""
+        code = f"""
+def _exec_sql():
+    sql = {repr(sql_query.strip())}
+    try:
+        from org.telegram.messenger import MessagesStorage
+        storage = MessagesStorage.getInstance(0)
+        db = storage.getDatabase()
+        if not db:
+            return {{"error": "MessagesStorage database is closed or unavailable."}}
+
+        cursor = db.queryFinalized(sql)
+        columns = []
+        rows = []
+        try:
+            col_count = cursor.getColumnCount()
+            for i in range(col_count):
+                columns.append(str(cursor.getColumnName(i)))
+
+            while cursor.next() and len(rows) < {limit}:
+                row = []
+                for i in range(col_count):
+                    try:
+                        row.append(str(cursor.stringValue(i)))
+                    except Exception:
+                        row.append("<blob>")
+                rows.append(row)
+        finally:
+            cursor.dispose()
+
+        return {{"query": sql, "columns": columns, "rows": rows, "count": len(rows)}}
+    except Exception as exc:
+        return {{"error": str(exc)}}
+
+result = _exec_sql()
 """
         return self.evaluate(code, is_eval=False)

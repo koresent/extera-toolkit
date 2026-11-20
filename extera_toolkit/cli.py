@@ -5,6 +5,8 @@ from typing import Any, List, Optional
 from .adb import AdbController, AdbError
 from .dev_client import DevServerClient, DevServerError
 from .formatters import get_default_format, output_result, set_default_format
+from .jtypes import color_from_hex, color_to_hex, to_signed32, to_signed64
+from .linter import lint_path
 from .logs import LogMonitor
 from .manager import PluginManager
 from .repl import RuntimeEvaluator
@@ -112,6 +114,49 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_fs_ls = fs_subparsers.add_parser("ls", parents=[format_parser], help="List files in remote directory.")
     p_fs_ls.add_argument("path", help="Remote directory path.")
+
+    # Java/Chaquopy Interop commands
+    p_jtypes = subparsers.add_parser("jtypes", parents=[format_parser], help="Java/Chaquopy type and color conversion helpers.")
+    jtypes_subparsers = p_jtypes.add_subparsers(dest="jtypes_action", help="Conversion action")
+    
+    p_jt_sign = jtypes_subparsers.add_parser("to-signed", parents=[format_parser], help="Convert unsigned integer or hex to signed 32-bit int.")
+    p_jt_sign.add_argument("value", help="Integer or hex value (e.g. 0xFFFFFFFF or 4294967295).")
+
+    p_jt_color = jtypes_subparsers.add_parser("color", parents=[format_parser], help="Convert #RGB, #RRGGBB, #AARRGGBB hex to signed 32-bit int.")
+    p_jt_color.add_argument("hex_color", help="Hex color string, e.g. #FF1E88E5 or #1E88E5.")
+
+    p_jt_tohex = jtypes_subparsers.add_parser("to-hex", parents=[format_parser], help="Convert signed 32-bit int to #AARRGGBB hex string.")
+    p_jt_tohex.add_argument("signed_int", type=int, help="Signed 32-bit integer.")
+
+    # Search commands
+    p_search = subparsers.add_parser("search", parents=[format_parser], help="Search loaded Telegram/Android classes.")
+    search_subparsers = p_search.add_subparsers(dest="search_action", help="Search category")
+    p_srch_cls = search_subparsers.add_parser("class", parents=[format_parser], help="Search classes by name or package.")
+    p_srch_cls.add_argument("query", help="Search keyword.")
+
+    # Hook info
+    p_hook = subparsers.add_parser("hook-info", parents=[format_parser], help="Inspect method overloads and generate self.hook_method snippet.")
+    p_hook.add_argument("class_name", help="Full class name.")
+    p_hook.add_argument("method_name", help="Method name to hook.")
+
+    # Stub generator
+    p_stub = subparsers.add_parser("stub", parents=[format_parser], help="Generate Python stub for Java subclass or dynamic proxy.")
+    p_stub.add_argument("class_name", help="Full class name.")
+    p_stub.add_argument("--mode", choices=["subclass", "proxy"], default="subclass", help="Stub mode (subclass or proxy).")
+
+    # Telegram runtime state
+    p_runtime = subparsers.add_parser("runtime", parents=[format_parser], help="Inspect Telegram runtime fragment stack and active UI.")
+    runtime_subparsers = p_runtime.add_subparsers(dest="runtime_action", help="Runtime inspection target")
+    runtime_subparsers.add_parser("fragment", parents=[format_parser], help="Inspect active fragment, dialog_id, topic, and popups.")
+
+    # Database query
+    p_db = subparsers.add_parser("db", parents=[format_parser], help="Execute SQL query against Telegram MessagesStorage local SQLite database.")
+    p_db.add_argument("query", help="SQL SELECT query.")
+    p_db.add_argument("--limit", "-l", type=int, default=50, help="Maximum number of rows to return (default: 50).")
+
+    # Linter
+    p_lint = subparsers.add_parser("lint", parents=[format_parser], help="Statically analyze plugin code for Chaquopy/Telegram runtime traps.")
+    p_lint.add_argument("path", help="Plugin source file (.py) or directory.")
 
     p_dev = subparsers.add_parser("dev", parents=[format_parser], help="Direct low-level dev server RPC commands.")
     dev_subparsers = p_dev.add_subparsers(dest="dev_action", help="Dev server RPC action")
@@ -292,6 +337,69 @@ def main(argv: Optional[List[str]] = None) -> int:
             else:
                 parser.parse_args(["fs", "--help"])
                 return 0
+
+        elif args.subcommand == "jtypes":
+            if args.jtypes_action == "to-signed":
+                signed_val = to_signed32(args.value)
+                output_result({"input": args.value, "signed_32": signed_val, "hex": f"0x{signed_val & 0xFFFFFFFF:08X}"}, args)
+                return 0
+            elif args.jtypes_action == "color":
+                signed_color = color_from_hex(args.hex_color)
+                output_result({"hex": args.hex_color, "signed_int": signed_color, "hex_normalized": color_to_hex(signed_color)}, args)
+                return 0
+            elif args.jtypes_action == "to-hex":
+                hex_str = color_to_hex(args.signed_int)
+                output_result({"signed_int": args.signed_int, "hex": hex_str}, args)
+                return 0
+            else:
+                parser.parse_args(["jtypes", "--help"])
+                return 0
+
+        elif args.subcommand == "search":
+            evaluator = RuntimeEvaluator(dev_client=dev, adb_controller=adb)
+            if args.search_action == "class":
+                results = evaluator.search_classes(args.query)
+                output_result(results, args)
+                return 0
+            else:
+                parser.parse_args(["search", "--help"])
+                return 0
+
+        elif args.subcommand == "hook-info":
+            evaluator = RuntimeEvaluator(dev_client=dev, adb_controller=adb)
+            info = evaluator.get_hook_info(args.class_name, args.method_name)
+            output_result(info, args)
+            return 0 if info.get("success", False) else 1
+
+        elif args.subcommand == "stub":
+            evaluator = RuntimeEvaluator(dev_client=dev, adb_controller=adb)
+            code = evaluator.generate_stub(args.class_name, mode=args.mode)
+            if resolve_format(args) in ("toon", "json", "json-pretty"):
+                output_result({"class": args.class_name, "mode": args.mode, "stub": code}, args)
+            else:
+                print(code)
+            return 0
+
+        elif args.subcommand == "runtime":
+            evaluator = RuntimeEvaluator(dev_client=dev, adb_controller=adb)
+            if args.runtime_action == "fragment":
+                res = evaluator.get_active_fragment()
+                output_result(res, args)
+                return 0 if res.get("success", False) else 1
+            else:
+                parser.parse_args(["runtime", "--help"])
+                return 0
+
+        elif args.subcommand == "db":
+            evaluator = RuntimeEvaluator(dev_client=dev, adb_controller=adb)
+            res = evaluator.query_database(args.query, limit=args.limit)
+            output_result(res, args)
+            return 0 if res.get("success", False) else 1
+
+        elif args.subcommand == "lint":
+            res = lint_path(args.path)
+            output_result(res, args)
+            return 0 if res.get("success", False) else 1
 
         elif args.subcommand == "dev":
             if args.dev_action == "ping":

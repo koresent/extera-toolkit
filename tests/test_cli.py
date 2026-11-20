@@ -86,3 +86,48 @@ def test_cli_ui_swipe_args():
     assert args_swipe.ui_action == "swipe"
     assert args_swipe.direction == "down"
     assert args_swipe.distance == 400
+
+
+def test_cli_jtypes_args():
+    parser = build_parser()
+    args_sign = parser.parse_args(["jtypes", "to-signed", "0xFFFFFFFF"])
+    assert args_sign.subcommand == "jtypes"
+    assert args_sign.jtypes_action == "to-signed"
+    assert args_sign.value == "0xFFFFFFFF"
+
+    args_color = parser.parse_args(["jtypes", "color", "#FF1E88E5"])
+    assert args_color.subcommand == "jtypes"
+    assert args_color.jtypes_action == "color"
+
+
+def test_cli_search_and_hook_args():
+    parser = build_parser()
+    args_srch = parser.parse_args(["search", "class", "DialogCell"])
+    assert args_srch.subcommand == "search"
+    assert args_srch.search_action == "class"
+    assert args_srch.query == "DialogCell"
+
+    args_hook = parser.parse_args(["hook-info", "org.telegram.ui.Cells.DialogCell", "onDraw"])
+    assert args_hook.subcommand == "hook-info"
+    assert args_hook.class_name == "org.telegram.ui.Cells.DialogCell"
+    assert args_hook.method_name == "onDraw"
+
+
+def test_cli_stub_runtime_db_lint_args():
+    parser = build_parser()
+    args_stub = parser.parse_args(["stub", "android.view.View.OnClickListener", "--mode", "proxy"])
+    assert args_stub.subcommand == "stub"
+    assert args_stub.mode == "proxy"
+
+    args_rt = parser.parse_args(["runtime", "fragment"])
+    assert args_rt.subcommand == "runtime"
+    assert args_rt.runtime_action == "fragment"
+
+    args_db = parser.parse_args(["db", "SELECT * FROM dialogs LIMIT 5", "--limit", "5"])
+    assert args_db.subcommand == "db"
+    assert "SELECT" in args_db.query
+    assert args_db.limit == 5
+
+    args_lint = parser.parse_args(["lint", "kanban_board/"])
+    assert args_lint.subcommand == "lint"
+    assert args_lint.path == "kanban_board/"
