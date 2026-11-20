@@ -122,34 +122,59 @@ When visual validation is explicitly required:
 tgplugin ui screenshot /tmp/board.png --bounds 0,100,1280,800
 ```
 
+#### Gestures & Scrolling
+Swipe or scroll lists and views:
+```bash
+tgplugin ui swipe down
+tgplugin ui swipe left
+```
+
 ---
 
-### 3.5 Log Monitoring (`logs`)
+### 3.5 Runtime Introspection (`inspect`)
+Query methods, fields, and inheritance of any Java or Python class without guessing or reading outdated sources:
+```bash
+tgplugin inspect class org.telegram.ui.Cells.DialogCell
+```
+Inspect a live object's fields:
+```bash
+tgplugin inspect expr "MessagesController.getInstance(0)"
+```
 
-exteraGram automatically isolates each plugin's logs under `plugin.<plugin_id>`.
+---
 
-Retrieve clean, prefix-stripped plugin logs:
+### 3.6 Log Monitoring & Crash Traces (`logs` & `crash`)
+
+Retrieve clean plugin logs:
 ```bash
 tgplugin logs --plugin kanban_board --tail 30
 ```
-Include warning and error levels only:
+Inspect recent application crash traces:
 ```bash
-tgplugin logs --plugin kanban_board --level W
-```
-Clear log buffer:
-```bash
-tgplugin logs --clear
+tgplugin crash --tail 50
 ```
 
 ---
 
-### 3.6 Clean App Restart (`restart`)
+### 3.7 Remote Filesystem (`fs`)
+Read or search files in device sandbox or external storage without complex shell pipelines:
+```bash
+tgplugin fs ls /sdcard/Android/data/org.telegram.messenger/files/
+tgplugin fs tail /sdcard/Download/plugin_debug.log -n 30
+tgplugin fs grep "Error" /sdcard/Download/plugin_debug.log
+```
 
-When native hooks or runtime state require a complete fresh start:
+---
+
+### 3.8 Device Connection & Clean Restart
+Connect over Wi-Fi ADB:
+```bash
+tgplugin connect 192.168.1.50:5555
+```
+Restart app:
 ```bash
 tgplugin restart
 ```
-Forces app stop and launches the main activity (`org.telegram.ui.LaunchActivity`).
 
 ---
 

@@ -178,3 +178,86 @@ class RuntimeEvaluator:
                 self.dev.remove_plugin(EVAL_PLUGIN_ID)
             except Exception:
                 pass
+
+    def inspect_class(self, class_name: str) -> Dict[str, Any]:
+        """Introspects fields, methods, and hierarchy of a Java or Python class in Telegram runtime."""
+        code = f"""
+def _do_inspect():
+    target = {repr(class_name)}
+    cls = None
+    try:
+        from hook_utils import find_class
+        cls = find_class(target)
+    except Exception:
+        pass
+    if cls is None:
+        try:
+            from java.lang import Class
+            cls = Class.forName(target)
+        except Exception:
+            pass
+    if cls is None:
+        import importlib
+        parts = target.rsplit(".", 1)
+        if len(parts) == 2:
+            mod = importlib.import_module(parts[0])
+            cls = getattr(mod, parts[1], None)
+        else:
+            cls = globals().get(target)
+
+    if cls is None:
+        return {{"error": f"Class '{{target}}' could not be resolved."}}
+
+    out = {{"class": str(target)}}
+    if hasattr(cls, "getDeclaredMethods"):
+        out["is_java"] = True
+        sup = cls.getSuperclass()
+        out["superclass"] = sup.getName() if sup else None
+
+        fields = []
+        for f in cls.getDeclaredFields():
+            fields.append({{"name": str(f.getName()), "type": str(f.getType().getSimpleName())}})
+        out["fields"] = sorted(fields, key=lambda x: x["name"])
+
+        methods = []
+        for m in cls.getDeclaredMethods():
+            params = [str(p.getSimpleName()) for p in m.getParameterTypes()]
+            methods.append({{"name": str(m.getName()), "returns": str(m.getReturnType().getSimpleName()), "params": params}})
+        out["methods"] = sorted(methods, key=lambda x: x["name"])
+    else:
+        out["is_java"] = False
+        out["doc"] = getattr(cls, "__doc__", "")
+        out["attributes"] = [a for a in dir(cls) if not a.startswith("__")]
+
+    return out
+
+result = _do_inspect()
+"""
+        return self.evaluate(code, is_eval=False)
+
+    def inspect_object(self, expression: str) -> Dict[str, Any]:
+        """Introspects an object's fields and runtime values inside Telegram runtime."""
+        code = f"""
+def _do_inspect_obj():
+    val = eval({repr(expression)})
+    out = {{"repr": repr(val), "type": type(val).__name__}}
+    if hasattr(val, "getClass"):
+        jcls = val.getClass()
+        out["java_class"] = jcls.getName()
+        fields = {{}}
+        for f in jcls.getDeclaredFields():
+            f.setAccessible(True)
+            try:
+                fields[str(f.getName())] = str(f.get(val))
+            except Exception as e:
+                fields[str(f.getName())] = f"<error: {{e}}>"
+        out["fields"] = fields
+    elif isinstance(val, dict):
+        out["keys"] = list(val.keys())
+    elif isinstance(val, (list, tuple)):
+        out["length"] = len(val)
+    return out
+
+result = _do_inspect_obj()
+"""
+        return self.evaluate(code, is_eval=False)

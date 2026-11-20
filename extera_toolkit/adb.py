@@ -93,6 +93,19 @@ class AdbController:
         authorized = [d for d in devices if d["status"] == "device"]
         return len(authorized) > 0
 
+    def connect_device(self, host_port: str) -> str:
+        """Connects to a remote ADB device over Wi-Fi (e.g. 192.168.1.50:5555)."""
+        res = self.run_cmd(["connect", host_port], check=False)
+        return res.stdout.strip()
+
+    def disconnect_device(self, host_port: Optional[str] = None) -> str:
+        """Disconnects a Wi-Fi device or all Wi-Fi devices."""
+        args = ["disconnect"]
+        if host_port:
+            args.append(host_port)
+        res = self.run_cmd(args, check=False)
+        return res.stdout.strip()
+
     def ensure_forward(self, local_port: int = 42690, remote_port: int = 42690) -> None:
         """Sets up port forwarding via ADB."""
         self.run_cmd(["forward", f"tcp:{local_port}", f"tcp:{remote_port}"])
@@ -158,6 +171,26 @@ class AdbController:
         """Simulates a key event (e.g. 4 for BACK)."""
         self.shell(f"input keyevent {keycode}")
 
+    def input_swipe(self, x1: int, y1: int, x2: int, y2: int, duration_ms: int = 250) -> None:
+        """Simulates a drag/swipe gesture from (x1, y1) to (x2, y2)."""
+        self.shell(f"input swipe {x1} {y1} {x2} {y2} {duration_ms}")
+
+    def input_swipe_direction(self, direction: str, distance: int = 500) -> None:
+        """Performs a swipe gesture in a named direction (up, down, left, right)."""
+        # Default middle coordinates for standard mobile view
+        cx, cy = 600, 1200
+        d = direction.lower().strip()
+        if d == "up":
+            self.input_swipe(cx, cy + (distance // 2), cx, cy - (distance // 2))
+        elif d == "down":
+            self.input_swipe(cx, cy - (distance // 2), cx, cy + (distance // 2))
+        elif d == "left":
+            self.input_swipe(cx + (distance // 2), cy, cx - (distance // 2), cy)
+        elif d == "right":
+            self.input_swipe(cx - (distance // 2), cy, cx + (distance // 2), cy)
+        else:
+            raise ValueError(f"Unknown direction '{direction}'. Use 'up', 'down', 'left', or 'right'.")
+
     def input_back(self) -> None:
         """Simulates BACK button press."""
         self.input_keyevent(4)
@@ -213,3 +246,28 @@ class AdbController:
     def clear_logcat(self) -> None:
         """Clears logcat buffer."""
         self.run_cmd(["logcat", "-c"], check=False)
+
+    def get_crash_log(self, tail: int = 50) -> List[str]:
+        """Reads recent crash traces from logcat crash buffer and AndroidRuntime."""
+        crash_buf = self.run_cmd(["logcat", "-d", "-b", "crash"], check=False).stdout.strip().splitlines()
+        runtime_buf = self.run_cmd(["logcat", "-d", "-s", "AndroidRuntime:E"], check=False).stdout.strip().splitlines()
+        combined = crash_buf + [l for l in runtime_buf if l not in crash_buf]
+        return combined[-tail:] if tail > 0 else combined
+
+    def fs_cat(self, remote_path: str) -> str:
+        """Reads content of a file on device."""
+        return self.shell(f"cat '{remote_path}'")
+
+    def fs_tail(self, remote_path: str, lines: int = 50) -> str:
+        """Reads the last N lines of a file on device."""
+        return self.shell(f"tail -n {lines} '{remote_path}'")
+
+    def fs_grep(self, pattern: str, remote_path: str) -> List[str]:
+        """Searches for pattern inside a file or path on device."""
+        res = self.shell(f"grep -n -E '{pattern}' '{remote_path}'", check=False)
+        return [l for l in res.splitlines() if l.strip()]
+
+    def fs_ls(self, remote_path: str) -> List[str]:
+        """Lists files and directories on device."""
+        res = self.shell(f"ls -la '{remote_path}'", check=False)
+        return [l for l in res.splitlines() if l.strip()]

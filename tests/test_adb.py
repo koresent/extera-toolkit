@@ -73,3 +73,54 @@ def test_ensure_forward(monkeypatch):
 
     adb.ensure_forward(42690, 42690)
     assert called_cmds == [["forward", "tcp:42690", "tcp:42690"]]
+
+
+def test_connect_disconnect_device(monkeypatch):
+    adb = AdbController()
+    cmds = []
+
+    def mock_run_cmd(args, **kwargs):
+        cmds.append(args)
+        return subprocess.CompletedProcess(args=args, returncode=0, stdout="connected\n", stderr="")
+
+    monkeypatch.setattr(adb, "run_cmd", mock_run_cmd)
+
+    res = adb.connect_device("192.168.1.50:5555")
+    assert res == "connected"
+    assert cmds[-1] == ["connect", "192.168.1.50:5555"]
+
+    adb.disconnect_device("192.168.1.50:5555")
+    assert cmds[-1] == ["disconnect", "192.168.1.50:5555"]
+
+
+def test_swipe_direction(monkeypatch):
+    adb = AdbController()
+    shells = []
+
+    monkeypatch.setattr(adb, "shell", lambda cmd: shells.append(cmd))
+
+    adb.input_swipe_direction("down", distance=400)
+    assert len(shells) == 1
+    assert "input swipe" in shells[0]
+
+
+def test_fs_operations(monkeypatch):
+    adb = AdbController()
+
+    def mock_shell(cmd, check=True):
+        if "cat" in cmd:
+            return "line1\nline2"
+        elif "tail" in cmd:
+            return "line2"
+        elif "grep" in cmd:
+            return "1:line1"
+        elif "ls" in cmd:
+            return "total 0\nfile.txt"
+        return ""
+
+    monkeypatch.setattr(adb, "shell", mock_shell)
+
+    assert adb.fs_cat("/sdcard/test.txt") == "line1\nline2"
+    assert adb.fs_tail("/sdcard/test.txt", lines=1) == "line2"
+    assert adb.fs_grep("line", "/sdcard/test.txt") == ["1:line1"]
+    assert len(adb.fs_ls("/sdcard/")) == 2

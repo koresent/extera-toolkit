@@ -68,6 +68,51 @@ def build_parser() -> argparse.ArgumentParser:
     p_ui_screen.add_argument("output", nargs="?", help="Local destination file path.")
     p_ui_screen.add_argument("--bounds", help="Crop bounds as 'x1,y1,x2,y2'.")
 
+    p_ui_swipe = ui_subparsers.add_parser("swipe", parents=[format_parser], help="Perform a swipe gesture on screen.")
+    p_ui_swipe.add_argument("direction", choices=["up", "down", "left", "right"], help="Swipe direction.")
+    p_ui_swipe.add_argument("--distance", "-d", type=int, default=500, help="Swipe distance in pixels (default: 500).")
+
+    # Connectivity commands
+    p_connect = subparsers.add_parser("connect", parents=[format_parser], help="Connect to device via Wi-Fi ADB (ip:port).")
+    p_connect.add_argument("host_port", help="Target device host and port, e.g. 192.168.1.50:5555.")
+
+    p_disconnect = subparsers.add_parser("disconnect", parents=[format_parser], help="Disconnect Wi-Fi ADB device.")
+    p_disconnect.add_argument("host_port", nargs="?", help="Optional host:port to disconnect (defaults to all).")
+
+    subparsers.add_parser("devices", parents=[format_parser], help="List all connected ADB devices.")
+
+    # Introspection commands
+    p_inspect = subparsers.add_parser("inspect", parents=[format_parser], help="Introspect Java/Python classes or live objects in app runtime.")
+    inspect_subparsers = p_inspect.add_subparsers(dest="inspect_action", help="Inspection target")
+
+    p_insp_class = inspect_subparsers.add_parser("class", parents=[format_parser], help="Inspect class methods, fields, and inheritance.")
+    p_insp_class.add_argument("name", help="Full class name (e.g. org.telegram.ui.Cells.DialogCell).")
+
+    p_insp_expr = inspect_subparsers.add_parser("expr", parents=[format_parser], help="Inspect an evaluated expression's fields and type.")
+    p_insp_expr.add_argument("expression", help="Expression to evaluate and introspect.")
+
+    # Crash diagnosis
+    p_crash = subparsers.add_parser("crash", parents=[format_parser], help="Retrieve recent crash traces from logcat crash buffer.")
+    p_crash.add_argument("--tail", "-n", type=int, default=50, help="Number of crash trace lines (default: 50).")
+
+    # Remote filesystem commands
+    p_fs = subparsers.add_parser("fs", parents=[format_parser], help="Inspect files on the device filesystem.")
+    fs_subparsers = p_fs.add_subparsers(dest="fs_action", help="Filesystem action")
+
+    p_fs_cat = fs_subparsers.add_parser("cat", parents=[format_parser], help="Read remote file.")
+    p_fs_cat.add_argument("path", help="Remote file path.")
+
+    p_fs_tail = fs_subparsers.add_parser("tail", parents=[format_parser], help="Read last lines of remote file.")
+    p_fs_tail.add_argument("path", help="Remote file path.")
+    p_fs_tail.add_argument("-n", "--lines", type=int, default=30, help="Number of lines to read.")
+
+    p_fs_grep = fs_subparsers.add_parser("grep", parents=[format_parser], help="Search pattern in remote file.")
+    p_fs_grep.add_argument("pattern", help="Regex or text pattern.")
+    p_fs_grep.add_argument("path", help="Remote file path.")
+
+    p_fs_ls = fs_subparsers.add_parser("ls", parents=[format_parser], help="List files in remote directory.")
+    p_fs_ls.add_argument("path", help="Remote directory path.")
+
     p_dev = subparsers.add_parser("dev", parents=[format_parser], help="Direct low-level dev server RPC commands.")
     dev_subparsers = p_dev.add_subparsers(dest="dev_action", help="Dev server RPC action")
     dev_subparsers.add_parser("ping", help="Ping dev server.")
@@ -185,8 +230,67 @@ def main(argv: Optional[List[str]] = None) -> int:
                 res = ui.screenshot(output_path=args.output, crop_bounds=bounds_tuple)
                 output_result(res, args)
                 return 0
+            elif args.ui_action == "swipe":
+                res = ui.swipe(direction=args.direction, distance=args.distance)
+                output_result(res, args)
+                return 0
             else:
                 parser.parse_args(["ui", "--help"])
+                return 0
+
+        elif args.subcommand == "connect":
+            msg = adb.connect_device(args.host_port)
+            output_result({"connected": args.host_port, "message": msg}, args)
+            return 0
+
+        elif args.subcommand == "disconnect":
+            msg = adb.disconnect_device(args.host_port)
+            output_result({"disconnected": args.host_port or "all", "message": msg}, args)
+            return 0
+
+        elif args.subcommand == "devices":
+            devs = adb.list_devices()
+            output_result(devs, args)
+            return 0
+
+        elif args.subcommand == "inspect":
+            evaluator = RuntimeEvaluator(dev_client=dev, adb_controller=adb)
+            if args.inspect_action == "class":
+                res = evaluator.inspect_class(args.name)
+                output_result(res, args)
+                return 0 if res.get("success", False) else 1
+            elif args.inspect_action == "expr":
+                res = evaluator.inspect_object(args.expression)
+                output_result(res, args)
+                return 0 if res.get("success", False) else 1
+            else:
+                parser.parse_args(["inspect", "--help"])
+                return 0
+
+        elif args.subcommand == "crash":
+            lines = adb.get_crash_log(tail=args.tail)
+            output_result(lines, args)
+            return 0
+
+        elif args.subcommand == "fs":
+            if args.fs_action == "cat":
+                content = adb.fs_cat(args.path)
+                output_result(content, args)
+                return 0
+            elif args.fs_action == "tail":
+                content = adb.fs_tail(args.path, lines=args.lines)
+                output_result(content, args)
+                return 0
+            elif args.fs_action == "grep":
+                matches = adb.fs_grep(args.pattern, args.path)
+                output_result(matches, args)
+                return 0
+            elif args.fs_action == "ls":
+                entries = adb.fs_ls(args.path)
+                output_result(entries, args)
+                return 0
+            else:
+                parser.parse_args(["fs", "--help"])
                 return 0
 
         elif args.subcommand == "dev":

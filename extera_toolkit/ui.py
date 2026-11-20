@@ -162,3 +162,12 @@ class UIInspector:
             "path": pulled_path,
             "crop": list(crop_bounds) if crop_bounds else None,
         }
+
+    def swipe(self, direction: str = "down", distance: int = 500) -> Dict[str, Any]:
+        """Swipes screen in specified direction (up, down, left, right)."""
+        self.adb.input_swipe_direction(direction=direction, distance=distance)
+        return {
+            "success": True,
+            "swiped": direction,
+            "distance": distance,
+        }
