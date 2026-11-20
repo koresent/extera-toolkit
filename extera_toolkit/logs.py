@@ -65,7 +65,6 @@ class LogMonitor:
         parsed = [clean_log_line(line) for line in raw_lines if line.strip()]
 
         if include_crashes:
-            # Check for recent uncaught exceptions or tracebacks
             crash_lines = self.adb.read_logcat(
                 tag="AndroidRuntime",
                 level="E",

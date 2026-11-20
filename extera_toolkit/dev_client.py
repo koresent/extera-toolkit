@@ -40,7 +40,6 @@ class DevServerClient:
             if self.auto_forward:
                 try:
                     self.adb.ensure_forward(self.port, self.port)
-                    # Retry once after forward
                     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     sock.settimeout(self.timeout)
                     sock.connect((self.host, self.port))
@@ -64,7 +63,6 @@ class DevServerClient:
             req_data = (json.dumps(payload, ensure_ascii=False) + "\n").encode("utf-8")
             sock.sendall(req_data)
 
-            # Read until full JSON response matching request id
             buffer = ""
             start_time = time.time()
             decoder = json.JSONDecoder()
@@ -75,16 +73,13 @@ class DevServerClient:
                     break
                 buffer += chunk.decode("utf-8", errors="replace")
 
-                # Try parsing JSON objects from buffer
                 stripped = buffer.strip()
                 if stripped:
                     try:
-                        # Attempt direct decode
                         parsed, _ = decoder.raw_decode(stripped)
                         if isinstance(parsed, dict) and parsed.get("#") == req_id:
                             return parsed
                     except json.JSONDecodeError:
-                        # Maybe multiple JSON objects or partial
                         idx = 0
                         while idx < len(stripped):
                             try:
@@ -113,7 +108,6 @@ class DevServerClient:
         plugins = res.get("plugins") or res.get("data")
         if isinstance(plugins, list):
             return plugins
-        # Some versions return dictionary of id -> info
         if isinstance(plugins, dict):
             return [{"id": k, **v} if isinstance(v, dict) else {"id": k, "value": v} for k, v in plugins.items()]
         return []

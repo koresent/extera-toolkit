@@ -41,25 +41,20 @@ def test_ui_inspector_dump_and_click(monkeypatch):
     tapped_coords = []
     monkeypatch.setattr(inspector.adb, "input_tap", lambda x, y: tapped_coords.append((x, y)))
 
-    # Dump all
     all_elems = inspector.dump()
     assert len(all_elems) == 3
 
-    # Dump clickable
     clickable_elems = inspector.dump(clickable_only=True)
     assert len(clickable_elems) == 2
 
-    # Filter
     filtered = inspector.dump(filter_text="Board")
     assert len(filtered) == 1
     assert filtered[0]["desc"] == "Open Board"
 
-    # Click
     res = inspector.click("Open Board")
     assert res["success"] is True
     assert tapped_coords == [(1200, 220)]
 
-    # Click not found
     fail_res = inspector.click("NonExistentButton")
     assert fail_res["success"] is False
     assert "not found" in fail_res["error"]

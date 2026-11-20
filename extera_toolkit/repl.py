@@ -15,7 +15,6 @@ def _build_probe_source(code_snippet: str, host_port: int, is_eval: bool = True)
     """Generates source code for the ephemeral probe plugin."""
     mode = "eval" if is_eval else "exec"
     source = f'''# -*- coding: utf-8 -*-
-# Auto-generated ephemeral evaluation probe for extera-toolkit
 import sys
 import io
 import json
@@ -39,7 +38,6 @@ class EvalProbePlugin(BasePlugin):
         error_val = None
         
         try:
-            # Common imports made available in eval scope
             from org.telegram.messenger import (
                 AndroidUtilities,
                 ApplicationLoader,
@@ -73,7 +71,6 @@ class EvalProbePlugin(BasePlugin):
 
         captured_stdout = output_buffer.getvalue()
         
-        # Serialize result safely
         payload = {{
             "success": error_val is None,
             "stdout": captured_stdout,
@@ -84,7 +81,6 @@ class EvalProbePlugin(BasePlugin):
         if isinstance(result_val, (dict, list, int, float, bool, str, type(None))):
             payload["result"] = result_val
 
-        # Transmit back to host
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.settimeout(3.0)
@@ -118,7 +114,6 @@ class RuntimeEvaluator:
 
     def evaluate(self, snippet: str, is_eval: bool = True) -> Dict[str, Any]:
         """Evaluates expression or executes code in Telegram runtime and returns result."""
-        # 1. Setup reverse port so phone can connect back to host
         try:
             self.adb.ensure_reverse(self.listen_port, self.listen_port)
         except Exception:
@@ -156,13 +151,9 @@ class RuntimeEvaluator:
         probe_code = _build_probe_source(snippet, self.listen_port, is_eval=is_eval)
 
         try:
-            # 2. Write probe plugin to dev server
             self.dev.write_plugin(EVAL_PLUGIN_ID, probe_code)
-
-            # Wait for listener thread
             listen_thread.join(timeout=self.timeout)
 
-            # Fallback if listener didn't catch (e.g. adb reverse issue)
             if not result_container:
                 try:
                     fallback_content = self.adb.shell("cat /sdcard/Download/__extera_eval_fallback.json", check=False)
@@ -183,7 +174,6 @@ class RuntimeEvaluator:
                 server_sock.close()
             except Exception:
                 pass
-            # Clean up ephemeral probe
             try:
                 self.dev.remove_plugin(EVAL_PLUGIN_ID)
             except Exception:

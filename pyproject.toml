@@ -1,7 +1,7 @@
 [project]
 name = "extera-toolkit"
 version = "0.1.0"
-description = "Autonomous agentic toolkit for developing, inspecting, debugging, and testing Telegram / exteraGram plugins"
+description = "CLI toolkit for developing, inspecting, and debugging Telegram and exteraGram plugins"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [

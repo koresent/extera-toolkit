@@ -6,13 +6,13 @@ This document defines the operational rules, interface contracts, diagnostic wor
 
 ## 1. Operating Environment & Philosophy
 
-`extera-toolkit` is an autonomous toolkit designed to test, debug, inspect, and deploy plugins for **exteraGram**, **Telegram**, and **AyuGram** over ADB and the built-in development server (`127.0.0.1:42690`).
+`extera-toolkit` is a CLI toolkit designed to test, debug, inspect, and deploy plugins for **exteraGram**, **Telegram**, and **AyuGram** over ADB and the built-in development server (`127.0.0.1:42690`).
 
 ### Core Design Principles
-* **Agent-First Precision**: Replaces guesswork and 10-step manual shell scripts with deterministic, single-step CLI commands.
-* **Non-Invasive Introspection**: Test hypotheses against Telegram's runtime API via live `eval` / `exec` instead of repeatedly writing print statements into plugin files.
-* **Token Efficiency (TOON)**: Standard tabular and key-value formats minimize token overhead by 50%+ compared to verbose JSON dumps and raw Android logs.
-* **Deterministic UI Automation**: Inspect on-screen elements by text or ID and tap their centers automatically — never guess screen coordinates or perform OCR on screenshots.
+* **Single-Step CLI**: Replaces ad-hoc multi-step shell scripts with deterministic commands.
+* **Runtime Introspection**: Test hypotheses against Telegram's runtime API via live `eval` / `exec` instead of writing print statements into plugin files.
+* **Token Efficiency (TOON)**: Tabular and key-value formats minimize token overhead compared to verbose JSON dumps and raw Android logs.
+* **Deterministic UI Automation**: Inspect on-screen elements by text or ID and tap their centers automatically — no coordinate guesswork or screenshot OCR.
 
 ---
 
@@ -70,7 +70,7 @@ tgplugin reload kanban_board --clean
 
 ---
 
-### 3.3 Live Runtime Evaluation (`eval` & `exec`) — The Superpower
+### 3.3 Live Runtime Evaluation (`eval` & `exec`)
 
 Instead of editing plugin code, deploying, and checking files, execute Python/Java code **directly inside the running Telegram process**:
 

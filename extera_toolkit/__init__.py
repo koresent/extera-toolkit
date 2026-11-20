@@ -1,3 +1,3 @@
-"""extera-toolkit: Autonomous agentic toolkit for developing, inspecting, and debugging Telegram / exteraGram plugins."""
+"""Development and debugging toolkit for Telegram and exteraGram plugins."""
 
 __version__ = "0.1.0"

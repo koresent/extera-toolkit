@@ -13,15 +13,12 @@ from extera_toolkit.formatters import (
 def test_formatters_dump_data():
     sample = {"name": "Telegram Kanban", "version": "1.0.1", "active": True}
     
-    # JSON
     json_out = dump_data(sample, fmt="json")
     assert '"name":"Telegram Kanban"' in json_out
 
-    # JSON-pretty
     pretty_out = dump_data(sample, fmt="json-pretty")
     assert '\n  "name": "Telegram Kanban"' in pretty_out
 
-    # TOON / fallback
     toon_out = to_toon(sample)
     assert "Telegram Kanban" in toon_out
 

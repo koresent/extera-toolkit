@@ -12,7 +12,6 @@ from .ui import UIInspector
 
 
 def build_parser() -> argparse.ArgumentParser:
-    # Common format flags shared across main parser and all subparsers
     format_parser = argparse.ArgumentParser(add_help=False)
     format_parser.add_argument("--toon", action="store_true", help="Force TOON format (recommended for LLM agents).")
     format_parser.add_argument("--json", action="store_true", help="Force compact JSON format.")
@@ -21,39 +20,32 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="extera-toolkit",
         parents=[format_parser],
-        description="Autonomous agentic toolkit for developing, inspecting, and debugging Telegram / exteraGram plugins.",
+        description="Development, debugging, and inspection toolkit for Telegram and exteraGram plugins.",
     )
 
     subparsers = parser.add_subparsers(dest="subcommand", help="Available subcommands")
 
-    # --- config ---
     p_config = subparsers.add_parser("config", parents=[format_parser], help="Manage persistent settings.")
     p_config.add_argument("--set-format", choices=["toon", "json", "json-pretty", "text"], help="Set default format.")
     p_config.add_argument("--get-format", action="store_true", help="Print active default format.")
 
-    # --- status ---
     subparsers.add_parser("status", parents=[format_parser], help="Show environment diagnostic status (ADB, package, PID, dev-server, plugins).")
 
-    # --- push ---
     p_push = subparsers.add_parser("push", parents=[format_parser], help="Validate and deploy plugin to device via dev-server.")
     p_push.add_argument("path", help="Path to plugin source file (.py) or directory.")
     p_push.add_argument("--clean", action="store_true", help="Perform clean reload (disable before push to prune hooks).")
     p_push.add_argument("--no-index", action="store_true", help="Skip running build_index.py.")
 
-    # --- reload ---
     p_reload = subparsers.add_parser("reload", parents=[format_parser], help="Reload an installed plugin.")
     p_reload.add_argument("plugin_id", help="ID of plugin to reload.")
     p_reload.add_argument("--clean", action="store_true", help="Disable, brief wait, and enable to clean hooks.")
 
-    # --- eval ---
     p_eval = subparsers.add_parser("eval", parents=[format_parser], help="Evaluate Python/Java expression in live Telegram runtime.")
     p_eval.add_argument("expression", help="Expression or code string to evaluate.")
 
-    # --- exec ---
     p_exec = subparsers.add_parser("exec", parents=[format_parser], help="Execute Python script in live Telegram runtime.")
     p_exec.add_argument("script_path", help="Path to Python script file to execute inside app.")
 
-    # --- logs ---
     p_logs = subparsers.add_parser("logs", parents=[format_parser], help="Read filtered plugin and app logcat.")
     p_logs.add_argument("--plugin", "-p", help="Filter by plugin ID (reads plugin.<id> tag).")
     p_logs.add_argument("--tail", "-n", type=int, default=30, help="Number of recent log lines to retrieve (default: 30).")
@@ -61,7 +53,6 @@ def build_parser() -> argparse.ArgumentParser:
     p_logs.add_argument("--grep", "-g", help="Regex or substring filter for log lines.")
     p_logs.add_argument("--clear", action="store_true", help="Clear logcat buffer.")
 
-    # --- ui ---
     p_ui = subparsers.add_parser("ui", parents=[format_parser], help="Inspect and interact with Telegram UI on screen.")
     ui_subparsers = p_ui.add_subparsers(dest="ui_action", help="UI action to perform")
 
@@ -77,11 +68,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_ui_screen.add_argument("output", nargs="?", help="Local destination file path.")
     p_ui_screen.add_argument("--bounds", help="Crop bounds as 'x1,y1,x2,y2'.")
 
-    # --- dev ---
     p_dev = subparsers.add_parser("dev", parents=[format_parser], help="Direct low-level dev server RPC commands.")
     dev_subparsers = p_dev.add_subparsers(dest="dev_action", help="Dev server RPC action")
-    dev_subparsers.add_parser("ping", parents=[format_parser], help="Ping dev server.")
-    dev_subparsers.add_parser("list", parents=[format_parser], help="List plugins loaded by dev server.")
+    dev_subparsers.add_parser("ping", help="Ping dev server.")
+    dev_subparsers.add_parser("list", help="List plugins loaded by dev server.")
     
     p_dev_en = dev_subparsers.add_parser("enable", parents=[format_parser], help="Enable a plugin.")
     p_dev_en.add_argument("plugin_id", help="Plugin ID.")
@@ -95,7 +85,6 @@ def build_parser() -> argparse.ArgumentParser:
     p_dev_rm = dev_subparsers.add_parser("remove", parents=[format_parser], help="Remove a plugin.")
     p_dev_rm.add_argument("plugin_id", help="Plugin ID.")
 
-    # --- restart ---
     p_restart = subparsers.add_parser("restart", parents=[format_parser], help="Restart Telegram/exteraGram app cleanly.")
     p_restart.add_argument("--package", help="Package name (autodetected if omitted).")
 

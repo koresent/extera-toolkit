@@ -18,7 +18,6 @@ class DeviceNotFoundError(AdbError):
     pass
 
 
-# Candidate packages for exteraGram / Telegram / AyuGram
 DEFAULT_CANDIDATE_PACKAGES = [
     "org.telegram.messenger",
     "com.exteragram.messenger",

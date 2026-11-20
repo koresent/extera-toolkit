@@ -49,14 +49,12 @@ def parse_ui_hierarchy(xml_content: str) -> List[Dict[str, Any]]:
             continue
 
         x1, y1, x2, y2 = bounds
-        # Skip zero-sized elements
         if x2 <= x1 or y2 <= y1:
             continue
 
         center_x = (x1 + x2) // 2
         center_y = (y1 + y2) // 2
 
-        # Simplify class name (e.g. android.widget.TextView -> TextView)
         short_cls = cls_name.split(".")[-1] if cls_name else ""
 
         elem_data: Dict[str, Any] = {
@@ -67,7 +65,6 @@ def parse_ui_hierarchy(xml_content: str) -> List[Dict[str, Any]]:
         if text:
             elem_data["text"] = text
         if resource_id:
-            # Strip package prefix if common
             short_id = resource_id.split("/")[-1] if "/" in resource_id else resource_id
             elem_data["id"] = short_id
         if content_desc:

@@ -77,21 +77,17 @@ class PluginManager:
             candidates = list(path.glob("*.py"))
             if not candidates:
                 raise FileNotFoundError(f"No .py files found in directory '{path}'")
-            # Prefer file with same name as directory
             match = [c for c in candidates if c.stem == path.name]
             target_file = match[0] if match else candidates[0]
         else:
             target_file = path
 
-        # 1. Syntax check
         validate_python_source(target_file)
 
-        # 2. Extract metadata
         content = target_file.read_text(encoding="utf-8")
         meta = extract_plugin_metadata(content)
         plugin_id = meta["__id__"]
 
-        # 3. Clean reload if requested (prevents duplicate hooks)
         if clean_reload:
             try:
                 self.dev.disable_plugin(plugin_id)
@@ -99,10 +95,8 @@ class PluginManager:
             except Exception:
                 pass
 
-        # 4. Deploy via dev-server write_plugin
         res = self.dev.write_plugin(plugin_id, content)
 
-        # 5. Check if repository build_index exists in parent dirs and run it
         if build_index:
             curr = target_file.parent
             for _ in range(3):
