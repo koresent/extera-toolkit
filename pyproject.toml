@@ -1,0 +1,23 @@
+[project]
+name = "extera-toolkit"
+version = "0.1.0"
+description = "Autonomous agentic toolkit for developing, inspecting, debugging, and testing Telegram / exteraGram plugins"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "toon-format>=1.2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-mock>=3.10.0",
+]
+
+[project.scripts]
+extera-toolkit = "extera_toolkit.cli:main"
+tgplugin = "extera_toolkit.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
