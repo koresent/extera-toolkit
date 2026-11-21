@@ -35,12 +35,27 @@ class AdbController:
 
     def __init__(self, adb_path: Optional[str] = None, device_id: Optional[str] = None):
         self.adb_path = adb_path or shutil.which("adb") or "adb"
-        self.device_id = device_id
+        self.device_id = device_id or os.environ.get("ANDROID_SERIAL")
 
-    def _base_cmd(self) -> List[str]:
-        cmd = [self.adb_path]
+    def _get_target_device_id(self) -> Optional[str]:
         if self.device_id:
-            cmd.extend(["-s", self.device_id])
+            return self.device_id
+        # If multiple devices connected, pick first authorized
+        try:
+            devs = self.list_devices()
+            authorized = [d["id"] for d in devs if d["status"] == "device"]
+            if authorized:
+                return authorized[0]
+        except Exception:
+            pass
+        return None
+
+    def _base_cmd(self, target_specific: bool = True) -> List[str]:
+        cmd = [self.adb_path]
+        if target_specific:
+            target = self._get_target_device_id()
+            if target:
+                cmd.extend(["-s", target])
         return cmd
 
     def run_cmd(
@@ -50,7 +65,8 @@ class AdbController:
         check: bool = True,
     ) -> subprocess.CompletedProcess:
         """Executes an ADB command synchronously."""
-        full_cmd = self._base_cmd() + args
+        is_general_cmd = args and args[0] in ("devices", "connect", "disconnect")
+        full_cmd = self._base_cmd(target_specific=not is_general_cmd) + args
         try:
             res = subprocess.run(
                 full_cmd,
@@ -125,7 +141,9 @@ class AdbController:
 
     def autodetect_package(self) -> Optional[str]:
         """Detects the installed Telegram/exteraGram package."""
-        packages_out = self.shell("pm list packages", check=False)
+        packages_out = self.shell("pm list packages --user 0", check=False)
+        if not packages_out.strip() or "Error" in packages_out:
+            packages_out = self.shell("pm list packages", check=False)
         installed = {line.replace("package:", "").strip() for line in packages_out.splitlines()}
         for candidate in DEFAULT_CANDIDATE_PACKAGES:
             if candidate in installed:

@@ -1,6 +1,9 @@
 # AGENTS.md — Extera Toolkit Operational Guide for AI Agents
 
-This document defines the operational rules, interface contracts, diagnostic workflows, and anti-patterns for AI coding agents working with **Extera Toolkit** (`extera-toolkit` / `tgplugin`).
+This document defines the operational rules, interface contracts, diagnostic workflows, and anti-patterns for AI coding agents working with **Extera Toolkit** (`extera-toolkit` / `etk`).
+
+> [!NOTE]
+> All CLI commands below are written using the primary executable `extera-toolkit`. The short alias `etk` is registered in `pyproject.toml` and is 100% equivalent (e.g. `etk status` = `extera-toolkit status`).
 
 ---
 
@@ -23,13 +26,13 @@ While `extera-toolkit` supports human-readable text and JSON, **AI AGENTS MUST P
 ### Enforcing TOON
 Set persistent configuration at the beginning of your session:
 ```bash
-tgplugin config --set-format toon
+extera-toolkit config --set-format toon
 ```
 Once configured, all subsequent commands will automatically output in TOON format without needing explicit flags.
 
 Alternatively, pass `--toon` explicitly:
 ```bash
-tgplugin status --toon
+extera-toolkit status --toon
 ```
 
 ---
@@ -39,7 +42,7 @@ tgplugin status --toon
 ### 3.1 Environment & Diagnostic Status
 Before performing any action, verify device connectivity and dev server status:
 ```bash
-tgplugin status
+extera-toolkit status
 ```
 Returns:
 * `device_connected`: `true` / `false`
@@ -55,17 +58,17 @@ Returns:
 #### Deploy Plugin (`push`)
 Validates Python syntax with `py_compile`, checks AST metadata (`__id__`, `__name__`), builds repository indices, and sends source code to the dev server:
 ```bash
-tgplugin push kanban_board/
+extera-toolkit push kanban_board/
 ```
 * Use `--clean` when updating UI hooks or action bar items to disable the old instance first and prevent duplicate buttons:
   ```bash
-  tgplugin push kanban_board/ --clean
+  extera-toolkit push kanban_board/ --clean
   ```
 
 #### Clean Reload (`reload`)
 If a plugin registers UI views or menu hooks, a standard reload may leave ghost views. Use `--clean` to trigger `on_plugin_unload` before re-enabling:
 ```bash
-tgplugin reload kanban_board --clean
+extera-toolkit reload kanban_board --clean
 ```
 
 ---
@@ -75,10 +78,10 @@ tgplugin reload kanban_board --clean
 Instead of editing plugin code, deploying, and checking files, execute Python/Java code **directly inside the running Telegram process**:
 
 ```bash
-tgplugin eval "UserConfig.selectedAccount"
+extera-toolkit eval "UserConfig.selectedAccount"
 ```
 ```bash
-tgplugin eval "MessagesController.getInstance(0).getTopicsController().getTopics(-1001234567890)"
+extera-toolkit eval "MessagesController.getInstance(0).getTopicsController().getTopics(-1001234567890)"
 ```
 
 Common pre-imported modules in eval scope:
@@ -89,7 +92,7 @@ Common pre-imported modules in eval scope:
 
 To execute a multi-line diagnostic script from disk:
 ```bash
-tgplugin exec scratch_diag.py
+extera-toolkit exec scratch_diag.py
 ```
 
 ---
@@ -99,34 +102,34 @@ tgplugin exec scratch_diag.py
 #### Dump On-Screen Elements
 Inspect active fragments, dialogs, bottom sheets, and buttons:
 ```bash
-tgplugin ui dump --clickable
+extera-toolkit ui dump --clickable
 ```
 Filter by label or keyword:
 ```bash
-tgplugin ui dump --filter "Kanban"
+extera-toolkit ui dump --filter "Kanban"
 ```
 Returns structured elements with text, resource ID, bounds, and calculated center coordinates `[cx, cy]`.
 
 #### Click an Element
 Click an element by its visible text, content description, or resource ID:
 ```bash
-tgplugin ui click "Telegram Kanban"
+extera-toolkit ui click "Telegram Kanban"
 ```
 ```bash
-tgplugin ui click "action_bar_title"
+extera-toolkit ui click "action_bar_title"
 ```
 
 #### Visual Verification (Screenshot)
 When visual validation is explicitly required:
 ```bash
-tgplugin ui screenshot /tmp/board.png --bounds 0,100,1280,800
+extera-toolkit ui screenshot /tmp/board.png --bounds 0,100,1280,800
 ```
 
 #### Gestures & Scrolling
 Swipe or scroll lists and views:
 ```bash
-tgplugin ui swipe down
-tgplugin ui swipe left
+extera-toolkit ui swipe down
+extera-toolkit ui swipe left
 ```
 
 ---
@@ -134,11 +137,11 @@ tgplugin ui swipe left
 ### 3.5 Runtime Introspection (`inspect`)
 Query methods, fields, and inheritance of any Java or Python class without guessing or reading outdated sources:
 ```bash
-tgplugin inspect class org.telegram.ui.Cells.DialogCell
+extera-toolkit inspect class org.telegram.ui.Cells.DialogCell
 ```
 Inspect a live object's fields:
 ```bash
-tgplugin inspect expr "MessagesController.getInstance(0)"
+extera-toolkit inspect expr "MessagesController.getInstance(0)"
 ```
 
 ---
@@ -148,27 +151,27 @@ tgplugin inspect expr "MessagesController.getInstance(0)"
 #### Class & Method Search
 Quickly find Telegram/Android classes without grepping entire source repositories:
 ```bash
-tgplugin search class DialogCell
+extera-toolkit search class DialogCell
 ```
 
 #### Hook Overload Inspector
 Inspect all overloads of a Java method and generate exact `hook_method` recipes:
 ```bash
-tgplugin hook-info org.telegram.ui.Cells.DialogCell onDraw
+extera-toolkit hook-info org.telegram.ui.Cells.DialogCell onDraw
 ```
 
 #### Stub Generator
 Generate ready-to-paste Python code for Chaquopy subclasses or dynamic proxies:
 ```bash
-tgplugin stub android.view.View.OnClickListener --mode proxy
-tgplugin stub android.widget.FrameLayout --mode subclass
+extera-toolkit stub android.view.View.OnClickListener --mode proxy
+extera-toolkit stub android.widget.FrameLayout --mode subclass
 ```
 
 #### Signed Type & Color Conversion (`jtypes`)
 Convert hex colors or unsigned numbers to Java signed 32-bit `jint` to avoid `OverflowError`:
 ```bash
-tgplugin jtypes color "#FF1E88E5"
-tgplugin jtypes to-signed "0xFFFFFFFF"
+extera-toolkit jtypes color "#FF1E88E5"
+extera-toolkit jtypes to-signed "0xFFFFFFFF"
 ```
 
 ---
@@ -178,13 +181,13 @@ tgplugin jtypes to-signed "0xFFFFFFFF"
 #### Inspect Active Screen / Fragment Stack
 Query currently displayed fragment, dialog ID, topic, and active bottom sheets:
 ```bash
-tgplugin runtime fragment
+extera-toolkit runtime fragment
 ```
 
 #### Query Internal SQLite Database
 Directly inspect local SQLite tables (`messages`, `dialogs`, `topics`) via `MessagesStorage`:
 ```bash
-tgplugin db "SELECT mid, uid, message FROM messages ORDER BY date DESC LIMIT 10"
+extera-toolkit db "SELECT mid, uid, message FROM messages ORDER BY date DESC LIMIT 10"
 ```
 
 ---
@@ -192,7 +195,7 @@ tgplugin db "SELECT mid, uid, message FROM messages ORDER BY date DESC LIMIT 10"
 ### 3.8 Static Analysis & Linter (`lint`)
 Validate plugin code against common runtime traps before deployment:
 ```bash
-tgplugin lint kanban_board/
+extera-toolkit lint kanban_board/
 ```
 Catches:
 * Unsigned color literals passed to Java methods without `to_jint`
@@ -206,11 +209,11 @@ Catches:
 
 Retrieve clean plugin logs:
 ```bash
-tgplugin logs --plugin kanban_board --tail 30
+extera-toolkit logs --plugin kanban_board --tail 30
 ```
 Inspect recent application crash traces:
 ```bash
-tgplugin crash --tail 50
+extera-toolkit crash --tail 50
 ```
 
 ---
@@ -218,9 +221,9 @@ tgplugin crash --tail 50
 ### 3.10 Remote Filesystem (`fs`)
 Read or search files in device sandbox or external storage without complex shell pipelines:
 ```bash
-tgplugin fs ls /sdcard/Android/data/org.telegram.messenger/files/
-tgplugin fs tail /sdcard/Download/plugin_debug.log -n 30
-tgplugin fs grep "Error" /sdcard/Download/plugin_debug.log
+extera-toolkit fs ls /sdcard/Android/data/org.telegram.messenger/files/
+extera-toolkit fs tail /sdcard/Download/plugin_debug.log -n 30
+extera-toolkit fs grep "Error" /sdcard/Download/plugin_debug.log
 ```
 
 ---
@@ -228,11 +231,11 @@ tgplugin fs grep "Error" /sdcard/Download/plugin_debug.log
 ### 3.11 Device Connection & Clean Restart
 Connect over Wi-Fi ADB:
 ```bash
-tgplugin connect 192.168.1.50:5555
+extera-toolkit connect 192.168.1.50:5555
 ```
 Restart app:
 ```bash
-tgplugin restart
+extera-toolkit restart
 ```
 
 ---
@@ -243,12 +246,12 @@ tgplugin restart
 > Avoid the following anti-patterns observed in past sessions:
 
 1. **NEVER write ad-hoc Python socket scripts (`python3 -c "import socket..."`)**:
-   Use `tgplugin dev ...`, `tgplugin push`, or `tgplugin eval`.
+   Use `extera-toolkit dev ...`, `extera-toolkit push`, or `extera-toolkit eval`.
 2. **NEVER guess screen tap coordinates (`adb shell input tap 1170 224`)**:
-   Use `tgplugin ui click "<label>"` or inspect coordinates with `tgplugin ui dump --filter "<label>"`.
+   Use `extera-toolkit ui click "<label>"` or inspect coordinates with `extera-toolkit ui dump --filter "<label>"`.
 3. **NEVER use OCR (Tesseract / PIL) to verify if buttons or cards exist**:
-   Use `tgplugin ui dump --filter "<keyword>"`. It queries the Android Accessibility hierarchy directly and returns in milliseconds.
+   Use `extera-toolkit ui dump --filter "<keyword>"`. It queries the Android Accessibility hierarchy directly and returns in milliseconds.
 4. **NEVER dump unconstrained `adb logcat`**:
-   Always filter with `tgplugin logs --plugin <id> --tail <n>`.
+   Always filter with `extera-toolkit logs --plugin <id> --tail <n>`.
 5. **NEVER write debug values to `/sdcard/Download/*.txt`**:
-   Use `self.logger.info(...)` or `tgplugin eval "..."`.
+   Use `self.logger.info(...)` or `extera-toolkit eval "..."`.

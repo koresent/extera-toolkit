@@ -16,7 +16,7 @@ dev = [
 
 [project.scripts]
 extera-toolkit = "extera_toolkit.cli:main"
-tgplugin = "extera_toolkit.cli:main"
+etk = "extera_toolkit.cli:main"
 
 [build-system]
 requires = ["hatchling"]
