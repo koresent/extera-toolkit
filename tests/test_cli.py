@@ -131,3 +131,19 @@ def test_cli_stub_runtime_db_lint_args():
     args_lint = parser.parse_args(["lint", "kanban_board/"])
     assert args_lint.subcommand == "lint"
     assert args_lint.path == "kanban_board/"
+
+
+def test_etk_entrypoint_registered():
+    from pathlib import Path
+    pyproject_path = Path(__file__).resolve().parent.parent / "pyproject.toml"
+    assert pyproject_path.exists()
+    try:
+        import tomllib
+        with open(pyproject_path, "rb") as f:
+            data = tomllib.load(f)
+        scripts = data.get("project", {}).get("scripts", {})
+        assert scripts.get("etk") == "extera_toolkit.cli:main"
+        assert scripts.get("extera-toolkit") == "extera_toolkit.cli:main"
+    except ImportError:
+        content = pyproject_path.read_text(encoding="utf-8")
+        assert 'etk = "extera_toolkit.cli:main"' in content

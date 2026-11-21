@@ -2,14 +2,14 @@
 
 This document defines the operational rules, interface contracts, diagnostic workflows, and anti-patterns for AI coding agents working with **Extera Toolkit** (`extera-toolkit` / `etk`).
 
-> [!NOTE]
-> All CLI commands below are written using the primary executable `extera-toolkit`. The short alias `etk` is registered in `pyproject.toml` and is 100% equivalent (e.g. `etk status` = `extera-toolkit status`).
-
 ---
 
 ## 1. Operating Environment & Philosophy
 
 `extera-toolkit` is a CLI toolkit designed to test, debug, inspect, and deploy plugins for **exteraGram**, **Telegram**, and **AyuGram** over ADB and the built-in development server (`127.0.0.1:42690`).
+
+### Preferred CLI Executable: `etk`
+* **Always use `etk` instead of `extera-toolkit`**: The short executable alias `etk` is identical in behavior to `extera-toolkit`. AI agents must use `etk` in all shell commands to conserve prompt/completion tokens and reduce context footprint.
 
 ### Core Design Principles
 * **Single-Step CLI**: Replaces ad-hoc multi-step shell scripts with deterministic commands.
@@ -26,13 +26,13 @@ While `extera-toolkit` supports human-readable text and JSON, **AI AGENTS MUST P
 ### Enforcing TOON
 Set persistent configuration at the beginning of your session:
 ```bash
-extera-toolkit config --set-format toon
+etk config --set-format toon
 ```
 Once configured, all subsequent commands will automatically output in TOON format without needing explicit flags.
 
 Alternatively, pass `--toon` explicitly:
 ```bash
-extera-toolkit status --toon
+etk status --toon
 ```
 
 ---
@@ -42,7 +42,7 @@ extera-toolkit status --toon
 ### 3.1 Environment & Diagnostic Status
 Before performing any action, verify device connectivity and dev server status:
 ```bash
-extera-toolkit status
+etk status
 ```
 Returns:
 * `device_connected`: `true` / `false`
@@ -58,17 +58,17 @@ Returns:
 #### Deploy Plugin (`push`)
 Validates Python syntax with `py_compile`, checks AST metadata (`__id__`, `__name__`), builds repository indices, and sends source code to the dev server:
 ```bash
-extera-toolkit push kanban_board/
+etk push kanban_board/
 ```
 * Use `--clean` when updating UI hooks or action bar items to disable the old instance first and prevent duplicate buttons:
   ```bash
-  extera-toolkit push kanban_board/ --clean
+  etk push kanban_board/ --clean
   ```
 
 #### Clean Reload (`reload`)
 If a plugin registers UI views or menu hooks, a standard reload may leave ghost views. Use `--clean` to trigger `on_plugin_unload` before re-enabling:
 ```bash
-extera-toolkit reload kanban_board --clean
+etk reload kanban_board --clean
 ```
 
 ---
@@ -78,10 +78,10 @@ extera-toolkit reload kanban_board --clean
 Instead of editing plugin code, deploying, and checking files, execute Python/Java code **directly inside the running Telegram process**:
 
 ```bash
-extera-toolkit eval "UserConfig.selectedAccount"
+etk eval "UserConfig.selectedAccount"
 ```
 ```bash
-extera-toolkit eval "MessagesController.getInstance(0).getTopicsController().getTopics(-1001234567890)"
+etk eval "MessagesController.getInstance(0).getTopicsController().getTopics(-1001234567890)"
 ```
 
 Common pre-imported modules in eval scope:
@@ -92,7 +92,7 @@ Common pre-imported modules in eval scope:
 
 To execute a multi-line diagnostic script from disk:
 ```bash
-extera-toolkit exec scratch_diag.py
+etk exec scratch_diag.py
 ```
 
 ---
@@ -102,34 +102,34 @@ extera-toolkit exec scratch_diag.py
 #### Dump On-Screen Elements
 Inspect active fragments, dialogs, bottom sheets, and buttons:
 ```bash
-extera-toolkit ui dump --clickable
+etk ui dump --clickable
 ```
 Filter by label or keyword:
 ```bash
-extera-toolkit ui dump --filter "Kanban"
+etk ui dump --filter "Kanban"
 ```
 Returns structured elements with text, resource ID, bounds, and calculated center coordinates `[cx, cy]`.
 
 #### Click an Element
 Click an element by its visible text, content description, or resource ID:
 ```bash
-extera-toolkit ui click "Telegram Kanban"
+etk ui click "Telegram Kanban"
 ```
 ```bash
-extera-toolkit ui click "action_bar_title"
+etk ui click "action_bar_title"
 ```
 
 #### Visual Verification (Screenshot)
 When visual validation is explicitly required:
 ```bash
-extera-toolkit ui screenshot /tmp/board.png --bounds 0,100,1280,800
+etk ui screenshot /tmp/board.png --bounds 0,100,1280,800
 ```
 
 #### Gestures & Scrolling
 Swipe or scroll lists and views:
 ```bash
-extera-toolkit ui swipe down
-extera-toolkit ui swipe left
+etk ui swipe down
+etk ui swipe left
 ```
 
 ---
@@ -137,11 +137,11 @@ extera-toolkit ui swipe left
 ### 3.5 Runtime Introspection (`inspect`)
 Query methods, fields, and inheritance of any Java or Python class without guessing or reading outdated sources:
 ```bash
-extera-toolkit inspect class org.telegram.ui.Cells.DialogCell
+etk inspect class org.telegram.ui.Cells.DialogCell
 ```
 Inspect a live object's fields:
 ```bash
-extera-toolkit inspect expr "MessagesController.getInstance(0)"
+etk inspect expr "MessagesController.getInstance(0)"
 ```
 
 ---
@@ -151,27 +151,27 @@ extera-toolkit inspect expr "MessagesController.getInstance(0)"
 #### Class & Method Search
 Quickly find Telegram/Android classes without grepping entire source repositories:
 ```bash
-extera-toolkit search class DialogCell
+etk search class DialogCell
 ```
 
 #### Hook Overload Inspector
 Inspect all overloads of a Java method and generate exact `hook_method` recipes:
 ```bash
-extera-toolkit hook-info org.telegram.ui.Cells.DialogCell onDraw
+etk hook-info org.telegram.ui.Cells.DialogCell onDraw
 ```
 
 #### Stub Generator
 Generate ready-to-paste Python code for Chaquopy subclasses or dynamic proxies:
 ```bash
-extera-toolkit stub android.view.View.OnClickListener --mode proxy
-extera-toolkit stub android.widget.FrameLayout --mode subclass
+etk stub android.view.View.OnClickListener --mode proxy
+etk stub android.widget.FrameLayout --mode subclass
 ```
 
 #### Signed Type & Color Conversion (`jtypes`)
 Convert hex colors or unsigned numbers to Java signed 32-bit `jint` to avoid `OverflowError`:
 ```bash
-extera-toolkit jtypes color "#FF1E88E5"
-extera-toolkit jtypes to-signed "0xFFFFFFFF"
+etk jtypes color "#FF1E88E5"
+etk jtypes to-signed "0xFFFFFFFF"
 ```
 
 ---
@@ -181,13 +181,13 @@ extera-toolkit jtypes to-signed "0xFFFFFFFF"
 #### Inspect Active Screen / Fragment Stack
 Query currently displayed fragment, dialog ID, topic, and active bottom sheets:
 ```bash
-extera-toolkit runtime fragment
+etk runtime fragment
 ```
 
 #### Query Internal SQLite Database
 Directly inspect local SQLite tables (`messages`, `dialogs`, `topics`) via `MessagesStorage`:
 ```bash
-extera-toolkit db "SELECT mid, uid, message FROM messages ORDER BY date DESC LIMIT 10"
+etk db "SELECT mid, uid, message FROM messages ORDER BY date DESC LIMIT 10"
 ```
 
 ---
@@ -195,7 +195,7 @@ extera-toolkit db "SELECT mid, uid, message FROM messages ORDER BY date DESC LIM
 ### 3.8 Static Analysis & Linter (`lint`)
 Validate plugin code against common runtime traps before deployment:
 ```bash
-extera-toolkit lint kanban_board/
+etk lint kanban_board/
 ```
 Catches:
 * Unsigned color literals passed to Java methods without `to_jint`
@@ -209,11 +209,11 @@ Catches:
 
 Retrieve clean plugin logs:
 ```bash
-extera-toolkit logs --plugin kanban_board --tail 30
+etk logs --plugin kanban_board --tail 30
 ```
 Inspect recent application crash traces:
 ```bash
-extera-toolkit crash --tail 50
+etk crash --tail 50
 ```
 
 ---
@@ -221,9 +221,9 @@ extera-toolkit crash --tail 50
 ### 3.10 Remote Filesystem (`fs`)
 Read or search files in device sandbox or external storage without complex shell pipelines:
 ```bash
-extera-toolkit fs ls /sdcard/Android/data/org.telegram.messenger/files/
-extera-toolkit fs tail /sdcard/Download/plugin_debug.log -n 30
-extera-toolkit fs grep "Error" /sdcard/Download/plugin_debug.log
+etk fs ls /sdcard/Android/data/org.telegram.messenger/files/
+etk fs tail /sdcard/Download/plugin_debug.log -n 30
+etk fs grep "Error" /sdcard/Download/plugin_debug.log
 ```
 
 ---
@@ -231,11 +231,11 @@ extera-toolkit fs grep "Error" /sdcard/Download/plugin_debug.log
 ### 3.11 Device Connection & Clean Restart
 Connect over Wi-Fi ADB:
 ```bash
-extera-toolkit connect 192.168.1.50:5555
+etk connect 192.168.1.50:5555
 ```
 Restart app:
 ```bash
-extera-toolkit restart
+etk restart
 ```
 
 ---
@@ -246,12 +246,12 @@ extera-toolkit restart
 > Avoid the following anti-patterns observed in past sessions:
 
 1. **NEVER write ad-hoc Python socket scripts (`python3 -c "import socket..."`)**:
-   Use `extera-toolkit dev ...`, `extera-toolkit push`, or `extera-toolkit eval`.
+   Use `etk dev ...`, `etk push`, or `etk eval`.
 2. **NEVER guess screen tap coordinates (`adb shell input tap 1170 224`)**:
-   Use `extera-toolkit ui click "<label>"` or inspect coordinates with `extera-toolkit ui dump --filter "<label>"`.
+   Use `etk ui click "<label>"` or inspect coordinates with `etk ui dump --filter "<label>"`.
 3. **NEVER use OCR (Tesseract / PIL) to verify if buttons or cards exist**:
-   Use `extera-toolkit ui dump --filter "<keyword>"`. It queries the Android Accessibility hierarchy directly and returns in milliseconds.
+   Use `etk ui dump --filter "<keyword>"`. It queries the Android Accessibility hierarchy directly and returns in milliseconds.
 4. **NEVER dump unconstrained `adb logcat`**:
-   Always filter with `extera-toolkit logs --plugin <id> --tail <n>`.
+   Always filter with `etk logs --plugin <id> --tail <n>`.
 5. **NEVER write debug values to `/sdcard/Download/*.txt`**:
-   Use `self.logger.info(...)` or `extera-toolkit eval "..."`.
+   Use `self.logger.info(...)` or `etk eval "..."`.
